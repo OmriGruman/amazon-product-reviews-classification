@@ -1,61 +1,65 @@
 import json
+import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
+from time import time
+start = time()
 
 
 def classify(train_file, test_file):
-    # todo: implement this function
     print(f'starting feature extraction and classification, train data: {train_file} and test: {test_file}')
-
-    # todo: you can try working with various classifiers from sklearn:
-    #  https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html
-    #  https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
-    #  https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html
-    #  please use the LogisticRegression classifier in the version you submit
 
     # Read json data files
     with open(train_file, 'r') as f:
-        train_data = json.load(f)
+        train_data = [json.loads(line) for line in f]
     with open(test_file, 'r') as f:
-        test_data = json.load(f)
+        test_data = [json.loads(line) for line in f]
 
-    # Create feature vectors using CountVectorizer or TfidfVectorizer
+    # Get rid of reviews with no text
+    train_reviews = list(filter(lambda review: 'reviewText' in review, train_data))
+    test_reviews = list(filter(lambda review: 'reviewText' in review, test_data))
+
+    # Split review into text and rating
+    train_review_texts = [review['reviewText'] for review in train_reviews]
+    train_review_ratings = [review['overall'] for review in train_reviews]
+    test_review_texts = [review['reviewText'] for review in test_reviews]
+    test_review_ratings = [review['overall'] for review in test_reviews]
+
+    # Create feature vectors using TfidfVectorizer
     vectorizer = TfidfVectorizer(max_features=1000)
-    X_train = vectorizer.fit_transform([review['reviewText'] for review in train_data])
-    X_test = vectorizer.transform([review['reviewText'] for review in test_data])
+    x_train = vectorizer.fit_transform(train_review_texts)
+    y_train = train_review_ratings
+    x_test = vectorizer.transform(test_review_texts)
+    y_test = test_review_ratings
+    words = vectorizer.get_feature_names_out()
 
     # Extract the 15 features with the highest discriminative power
     selector = SelectKBest(k=15)
-    X_train = selector.fit_transform(X_train, [review['overall'] for review in train_data])
-    X_test = selector.transform(X_test)
+    selector.fit(x_train, y_train)
+    best_features = selector.get_support()
+    features = np.array(words)
 
-    # Train a classifier, such as a LinearSVC or a random forest classifier, on the train data
-    clf = LogisticRegression()
-    clf.fit(X_train, [review['overall'] for review in train_data])
+    print(f'Select best 15 feature words: {", ".join(features[best_features])}', )
+
+    # Train a classifier on the train data
+    clf = LogisticRegression(max_iter=200)
+    clf.fit(x_train, y_train)
 
     # Use the trained classifier to make predictions on the test data
-    y_pred = clf.predict(X_test)
+    y_pred = clf.predict(x_test)
 
     # Evaluate the classifier's performance using the F1 metric and overall accuracy
-    f1 = f1_score(y_pred, [review['overall'] for review in test_data], average=None)
-    acc = accuracy_score(y_pred, [review['overall'] for review in test_data])
+    f1 = f1_score(y_pred, y_test, average=None)
+    acc = accuracy_score(y_pred, y_test)
 
-    # Print the confusion matrix
-    print(confusion_matrix(y_pred, [review['overall'] for review in test_data]))
+    # Print confusion matrix
+    cm = confusion_matrix(y_pred, y_test)
+    print(f'confusion matrix:\n{cm}')
 
-    # todo: fill in the dictionary below with actual scores obtained on the test data
-    test_results = {
-        'class_1_F1': 0.0,
-        'class_2_F1': 0.0,
-        'class_3_F1': 0.0,
-        'class_4_F1': 0.0,
-        'class_5_F1': 0.0,
-        'accuracy': 0.0
-    }
-
-    return test_results
+    # Fill in the dictionary below with actual scores obtained on the test data
+    return {f'class_{cls}_F1': score for cls, score in enumerate(f1, start=1)} | {'accuracy': acc}
 
 
 if __name__ == '__main__':
@@ -65,4 +69,6 @@ if __name__ == '__main__':
     results = classify(config['train_data'], config['test_data'])
 
     for k, v in results.items():
-        print(k, v)
+        print(k, v, sep=' = ')
+
+    print(f'total time: {time() - start:.2f}')
