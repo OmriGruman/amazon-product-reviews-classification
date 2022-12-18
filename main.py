@@ -5,18 +5,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from time import time
-import re
 
 start = time()
 
 
 def review_filter(review: dict):
     return 'reviewText' in review and 'summary' in review and review['verified']
-
-
-def review_to_text(review: dict):
-    punctuation_pattern = r'[^a-zA-Z\s]'
-    return re.sub(punctuation_pattern, '', review['summary'] + " " + review['reviewText'])
 
 
 def classify(train_file, test_file):
@@ -33,9 +27,9 @@ def classify(train_file, test_file):
     test_reviews = list(filter(review_filter, test_data))
 
     # Extract text from reviews
-    train_review_texts = [review_to_text(review) for review in train_reviews]
+    train_review_texts = [review['summary'] + " " + review['reviewText'] for review in train_reviews]
     train_review_ratings = [review['overall'] for review in train_reviews]
-    test_review_texts = [review_to_text(review) for review in test_reviews]
+    test_review_texts = [review['summary'] + " " + review['reviewText'] for review in test_reviews]
     test_review_ratings = [review['overall'] for review in test_reviews]
 
     # Create feature vectors using TfidfVectorizer
@@ -56,7 +50,7 @@ def classify(train_file, test_file):
     print(f'Select best 15 feature words: {", ".join(features[best_features])}')
 
     # Train a classifier on the train data
-    clf = LogisticRegression(max_iter=20000)
+    clf = LogisticRegression(C=1.5, max_iter=1000)
     clf.fit(x_train, y_train)
 
     # Use the trained classifier to make predictions on the test data
