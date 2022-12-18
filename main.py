@@ -10,6 +10,15 @@ import re
 start = time()
 
 
+def review_filter(review: dict):
+    return 'reviewText' in review and 'summary' in review and review['verified']
+
+
+def review_to_text(review: dict):
+    punctuation_pattern = r'[^a-zA-Z\s]'
+    return re.sub(punctuation_pattern, '', review['summary'] + " " + review['reviewText'])
+
+
 def classify(train_file, test_file):
     print(f'starting feature extraction and classification, train data: {train_file} and test: {test_file}')
 
@@ -20,15 +29,13 @@ def classify(train_file, test_file):
         test_data = [json.loads(line) for line in f]
 
     # Get rid of reviews with no text or summary
-    train_reviews = list(filter(lambda review: 'reviewText' in review and 'summary' in review, train_data))
-    test_reviews = list(filter(lambda review: 'reviewText' in review and 'summary' in review, test_data))
+    train_reviews = list(filter(review_filter, train_data))
+    test_reviews = list(filter(review_filter, test_data))
 
-    # Remove punctuation
-    punctuation_pattern = r'[^a-zA-Z\s]'
-
-    train_review_texts = [re.sub(punctuation_pattern, '', review['summary'] + " " + review['reviewText']) for review in train_reviews]
+    # Extract text from reviews
+    train_review_texts = [review_to_text(review) for review in train_reviews]
     train_review_ratings = [review['overall'] for review in train_reviews]
-    test_review_texts = [re.sub(punctuation_pattern, '', review['summary'] + " " + review['reviewText']) for review in test_reviews]
+    test_review_texts = [review_to_text(review) for review in test_reviews]
     test_review_ratings = [review['overall'] for review in test_reviews]
 
     # Create feature vectors using TfidfVectorizer
