@@ -6,14 +6,23 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from time import time
 
+# Start timer
 start = time()
 
-
 def review_filter(review: dict):
+    """
+    Returns True if the review has 'reviewText' and 'summary' fields and is verified, False otherwise.
+    """
     return 'reviewText' in review and 'summary' in review and review['verified']
 
 
 def classify(train_file, test_file):
+    """
+     Classifies the sentiment of customer reviews using a logistic regression classifier.
+     :param train_file: str, path to the file containing the training data
+     :param test_file: str, path to the file containing the test data
+     :return: dict, a dictionary of F1 scores for each class and the overall accuracy of the model
+     """
     print(f'starting feature extraction and classification, train data: {train_file} and test: {test_file}')
 
     # Read json data files
@@ -69,12 +78,16 @@ def classify(train_file, test_file):
 
 
 if __name__ == '__main__':
+    # Read configuration file
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 
+    # Classify the sentiment of the reviews
     results = classify(config['train_data'], config['test_data'])
 
+    # Print results
     for k, v in results.items():
         print(k, v, sep=' = ')
 
+    # Print total time taken to run the script
     print(f'total time: {time() - start:.2f}')
