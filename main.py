@@ -1,22 +1,14 @@
 import json
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
-from nltk.corpus import stopwords
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from time import time
 import re
+
 start = time()
-from nltk.stem import WordNetLemmatizer
 
-def lemmatize_text(text):
-    lemmatizer = WordNetLemmatizer()
-    lemmatized_text = [lemmatizer.lemmatize(word) for word in text]
-    return lemmatized_text
-
-# Define a tokenizer that uses the lemmatize_text function
-tokenize = lambda doc: lemmatize_text(doc.split())
 
 def classify(train_file, test_file):
     print(f'starting feature extraction and classification, train data: {train_file} and test: {test_file}')
@@ -27,21 +19,20 @@ def classify(train_file, test_file):
     with open(test_file, 'r') as f:
         test_data = [json.loads(line) for line in f]
 
-    # Get rid of reviews with no text
-    train_reviews = list(filter(lambda review: 'reviewText' in review, train_data))
-    test_reviews = list(filter(lambda review: 'reviewText' in review, test_data))
+    # Get rid of reviews with no text or summary
+    train_reviews = list(filter(lambda review: 'reviewText' in review and 'summary' in review, train_data))
+    test_reviews = list(filter(lambda review: 'reviewText' in review and 'summary' in review, test_data))
 
+    # Remove punctuation
     punctuation_pattern = r'[^a-zA-Z\s]'
 
-    # Split review into text and rating
-    train_review_texts = [re.sub(punctuation_pattern, '', review['reviewText']) for review in train_reviews]
+    train_review_texts = [re.sub(punctuation_pattern, '', review['summary'] + " " + review['reviewText']) for review in train_reviews]
     train_review_ratings = [review['overall'] for review in train_reviews]
-    test_review_texts = [re.sub(punctuation_pattern, '', review['reviewText']) for review in test_reviews]
+    test_review_texts = [re.sub(punctuation_pattern, '', review['summary'] + " " + review['reviewText']) for review in test_reviews]
     test_review_ratings = [review['overall'] for review in test_reviews]
 
-
     # Create feature vectors using TfidfVectorizer
-    vectorizer = TfidfVectorizer(stop_words=stopwords.words('english'),max_features=1000,tokenizer=tokenize)
+    vectorizer = TfidfVectorizer(max_features=1000)
 
     x_train = vectorizer.fit_transform(train_review_texts)
     y_train = train_review_ratings
@@ -55,7 +46,7 @@ def classify(train_file, test_file):
     best_features = selector.get_support()
     features = np.array(words)
 
-    print(f'Select best 15 feature words: {", ".join(features[best_features])}', )
+    print(f'Select best 15 feature words: {", ".join(features[best_features])}')
 
     # Train a classifier on the train data
     clf = LogisticRegression(max_iter=20000)
