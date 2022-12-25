@@ -6,19 +6,19 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.metrics import f1_score, accuracy_score, confusion_matrix
 from time import time
 
-# Start timer
-start = time()
 
 def review_filter(review: dict):
     """
-    Returns True if the review has 'reviewText' and 'summary' fields and is verified, False otherwise.
+    Decides whether a review should be considered or not.
+    :param review: dict, a dictionary containing the review fields.
+    :return: boolean, True if the review has 'reviewText' and 'summary' fields and is verified, False otherwise.
     """
     return 'reviewText' in review and 'summary' in review and review['verified']
 
 
 def classify(train_file, test_file):
     """
-     Classifies the sentiment of customer reviews using a logistic regression classifier.
+     Classifies customer reviews to the overall ratings using a logistic regression classifier.
      :param train_file: str, path to the file containing the training data
      :param test_file: str, path to the file containing the test data
      :return: dict, a dictionary of F1 scores for each class and the overall accuracy of the model
@@ -56,7 +56,7 @@ def classify(train_file, test_file):
     best_features = selector.get_support()
     features = np.array(words)
 
-    print(f'Select best 15 feature words: {", ".join(features[best_features])}')
+    print(f'15 Most valuable words: {", ".join(features[best_features])}')
 
     # Train a classifier on the train data
     clf = LogisticRegression(C=1.5, max_iter=1000)
@@ -78,11 +78,14 @@ def classify(train_file, test_file):
 
 
 if __name__ == '__main__':
+    # Storing the starting time of the test
+    start = time()
+
     # Read configuration file
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 
-    # Classify the sentiment of the reviews
+    # Classify the reviews
     results = classify(config['train_data'], config['test_data'])
 
     # Print results
